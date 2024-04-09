@@ -1,28 +1,36 @@
 import io
 import os
 
-import openai
 import pydub
 import requests
 import soundfile as sf
 import speech_recognition as sr
 from flask import Flask, jsonify, request
+from openai import AzureOpenAI
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
-
-# OpenAi API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+load_dotenv()
 
 # Access token for your WhatsApp business account app
 whatsapp_token = os.environ.get("WHATSAPP_TOKEN")
 
 # Verify Token defined when configuring the webhook
-verify_token = os.environ.get("VERIFY_TOKEN")
+verify_token = os.getenv("VERIFY_TOKEN")
+azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
 
 # Message log dictionary to enable conversation over multiple messages
 message_log_dict = {}
 
+
+client = AzureOpenAI(
+    api_key=azure_openai_api_key,  
+    api_version="2024-02-01",
+    azure_endpoint = azure_openai_endpoint
+    )
+    
 
 # language for speech to text recoginition
 # TODO: detect this automatically based on the user's language
@@ -125,8 +133,8 @@ def remove_last_message_from_log(phone_number):
 def make_openai_request(message, from_number):
     try:
         message_log = update_message_log(message, from_number, "user")
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        response = client.chat.completions.create(
+            model="gpt-35-turbo",
             messages=message_log,
             temperature=0.7,
         )
@@ -191,6 +199,8 @@ def verify(request):
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
+
+    print(f"mode: {mode}, token: {token}, challenge: {challenge}")
     # Check if a token and mode were sent
     if mode and token:
         # Check the mode and token sent are correct
